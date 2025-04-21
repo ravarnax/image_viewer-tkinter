@@ -13,6 +13,7 @@ IMAGE_WIDTH = 800
 IMAGE_HEIGHT = 500
 
 # === LOAD AND RESIZE ICONS ===
+# make change according to your directory
 sun_icon_raw = Image.open("GUI IN PYTHON\\Image Viewer\\sun_icon.png").resize((24, 24), Image.LANCZOS)
 moon_icon_raw = Image.open("GUI IN PYTHON\\Image Viewer\\moon_icon.png").resize((24, 24), Image.LANCZOS)
 
