@@ -8,9 +8,16 @@ root.title("Image Viewer")
 root.resizable(False, False)
 
 # === CONFIG ===
-IMAGE_FOLDER = "GUI IN PYTHON\Image Viewer\images"
+IMAGE_FOLDER = "GUI IN PYTHON\\Image Viewer\\images"
 IMAGE_WIDTH = 800
 IMAGE_HEIGHT = 500
+
+# === LOAD AND RESIZE ICONS ===
+sun_icon_raw = Image.open("GUI IN PYTHON\\Image Viewer\\sun_icon.png").resize((24, 24), Image.LANCZOS)
+moon_icon_raw = Image.open("GUI IN PYTHON\\Image Viewer\\moon_icon.png").resize((24, 24), Image.LANCZOS)
+
+sun_icon = ImageTk.PhotoImage(sun_icon_raw)
+moon_icon = ImageTk.PhotoImage(moon_icon_raw)
 
 # === THEME SETTINGS ===
 themes = {
@@ -42,15 +49,10 @@ images = [
     for path in image_paths
 ]
 
-
 # === IMAGE DISPLAY ===
 image_index = 0
 image_label = Label(image=images[image_index])
 image_label.grid(row=0, column=0, columnspan=3)
-
-# === STATUS BAR ===
-status = Label(root, text=f"Image 1 of {len(images)}", bd=1, relief=SUNKEN, anchor=E)
-status.grid(row=2, column=0, columnspan=3, sticky=W+E)
 
 # === FUNCTIONS ===
 def forward():
@@ -67,7 +69,7 @@ def back():
 
 def update_viewer():
     image_label.config(image=images[image_index])
-    status.config(text=f"Image {image_index + 1} of {len(images)}")
+    status_text.config(text=f"Image {image_index + 1} of {len(images)}")
     update_buttons()
 
 def update_buttons():
@@ -83,24 +85,44 @@ def apply_theme():
     theme = themes[current_theme]
     root.configure(bg=theme["bg"])
     image_label.config(bg=theme["bg"])
-    status.config(bg=theme["bg"], fg=theme["status_fg"])
+    status_bar.config(bg=theme["bg"])
+    status_text.config(bg=theme["bg"], fg=theme["status_fg"])
+    toggle_button.config(bg=theme["bg"], activebackground=theme["bg"], image=moon_icon if current_theme == "dark" else sun_icon)
     back_button.config(bg=theme["btn_bg"], fg=theme["btn_fg"], activebackground=theme["btn_active"])
     forward_button.config(bg=theme["btn_bg"], fg=theme["btn_fg"], activebackground=theme["btn_active"])
     exit_button.config(bg=theme["btn_bg"], fg=theme["btn_fg"], activebackground=theme["btn_active"])
-    toggle_button.config(bg=theme["btn_bg"], fg=theme["btn_fg"], activebackground=theme["btn_active"])
     root.title("Image Viewer - Dark Mode" if current_theme == "dark" else "Image Viewer - Light Mode")
 
 # === BUTTONS ===
 back_button = Button(root, text="<<", command=back)
 exit_button = Button(root, text="Exit", command=root.quit)
 forward_button = Button(root, text=">>", command=forward)
-toggle_button = Button(root, text="Toggle Theme", command=toggle_theme)
 
 back_button.grid(row=1, column=0)
 exit_button.grid(row=1, column=1)
 forward_button.grid(row=1, column=2)
-toggle_button.grid(row=3, column=0, columnspan=3, pady=10)
 
+# === STATUS BAR WITH EMBEDDED ICON BUTTON ===
+status_bar = Frame(root, bd=1, relief=SUNKEN)
+status_bar.grid(row=2, column=0, columnspan=3, sticky=W+E)
+
+status_text = Label(status_bar, text=f"Image 1 of {len(images)}", anchor=E, font=("Segoe UI", 9))
+status_text.pack(side=RIGHT, fill=X, expand=True)
+
+toggle_button = Button(status_bar, image=moon_icon, command=toggle_theme, bd=0, relief=FLAT)
+toggle_button.pack(side=LEFT, padx=5, pady=2)
+
+
+# === HOVER EFFECT TO TOGGLE BUTTON === 
+def on_enter(e): 
+    toggle_button.config(bg=themes[current_theme]['btn_active'])
+def on_leave(e):
+    toggle_button.config(bg=themes[current_theme]['bg'])
+toggle_button.bind('<Enter>', on_enter)
+toggle_button.bind('<Leave>', on_leave)
+
+
+# === INIT ===
 update_buttons()
 apply_theme()
 root.mainloop()
