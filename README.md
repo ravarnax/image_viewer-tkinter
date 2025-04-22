@@ -17,6 +17,7 @@ This is an initial version of the project with basic features and plans to add m
 - 🖼️ View images from a local folder
 - 🔄 Navigate using Next/Previous buttons
 - 🧼 Simple and clean layout
+- 😎 Dark theme support
 
 ---
 
