@@ -1,129 +1,171 @@
-from tkinter import *
-from PIL import Image, ImageTk
 import os
+import tkinter as tk
+from tkinter import filedialog
+from PIL import Image, ImageTk
 
-# === MAIN WINDOW ===
-root = Tk()
-root.title("Image Viewer")
-root.resizable(False, False)
+class ImageViewer:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Image Viewer using Tkinter")
+        self.root.geometry("1000x700")
+        self.root.minsize(800, 600)
 
-# === CONFIG ===
-IMAGE_FOLDER = "GUI IN PYTHON\\Image Viewer\\images"
-IMAGE_WIDTH = 800
-IMAGE_HEIGHT = 500
+        # === THEME SETUP ===
+        self.themes = {
+            "light": {
+                "bg": "#f0f0f0",
+                "btn_bg": "#ddd",
+                "btn_fg": "#000",
+                "btn_active": "#bbb",
+                "status_fg": "#000"
+            },
+            "dark": {
+                "bg": "#2e2e2e",
+                "btn_bg": "#444",
+                "btn_fg": "#fff",
+                "btn_active": "#555",
+                "status_fg": "#fff"
+            }
+        }
+        self.current_theme = "dark"
 
-# === LOAD AND RESIZE ICONS ===
-# make change according to your directory
-sun_icon_raw = Image.open("GUI IN PYTHON\\Image Viewer\\sun_icon.png").resize((24, 24), Image.LANCZOS)
-moon_icon_raw = Image.open("GUI IN PYTHON\\Image Viewer\\moon_icon.png").resize((24, 24), Image.LANCZOS)
+        # Load icons
+        self.sun_icon = ImageTk.PhotoImage(Image.open("GUI IN PYTHON\\Image Viewer\\sun_icon.png").resize((24, 24)))
+        self.moon_icon = ImageTk.PhotoImage(Image.open("GUI IN PYTHON\\Image Viewer\\moon_icon.png").resize((24, 24)))
 
-sun_icon = ImageTk.PhotoImage(sun_icon_raw)
-moon_icon = ImageTk.PhotoImage(moon_icon_raw)
+        # === STATE ===
+        self.image_index = 0
+        self.fullscreen = False
+        self.resize_after_id = None
+        self.last_size = (0, 0)
+        self.pil_images = []
+        self.tk_image = None
 
-# === THEME SETTINGS ===
-themes = {
-    "light": {
-        "bg": "#f0f0f0",
-        "btn_bg": "#ddd",
-        "btn_fg": "#000",
-        "btn_active": "#bbb",
-        "status_fg": "#000"
-    },
-    "dark": {
-        "bg": "#2e2e2e",
-        "btn_bg": "#444",
-        "btn_fg": "#fff",
-        "btn_active": "#555",
-        "status_fg": "#fff"
-    }
-}
+        # === UI SETUP ===
+        self.image_label = tk.Label(self.root, bg='black')
+        self.image_label.pack(expand=True, fill='both')
 
-current_theme = "dark"  # Start with dark mode
+        self.controls_frame = tk.Frame(self.root)
+        self.controls_frame.pack(fill='x')
 
-# === LOAD IMAGES ===
-image_files = [f for f in os.listdir(IMAGE_FOLDER) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.gif'))]
-image_files.sort()
-image_paths = [os.path.join(IMAGE_FOLDER, f) for f in image_files]
+        self.prev_button = tk.Button(self.controls_frame, text='<<', command=self.show_prev)
+        self.exit_button = tk.Button(self.controls_frame, text='Exit', command=self.root.quit)
+        self.next_button = tk.Button(self.controls_frame, text='>>', command=self.show_next)
+        self.theme_button = tk.Button(self.controls_frame, image=self.moon_icon, command=self.toggle_theme)
 
-images = [
-    ImageTk.PhotoImage(Image.open(path).resize((IMAGE_WIDTH, IMAGE_HEIGHT), Image.LANCZOS))
-    for path in image_paths
-]
+        self.theme_button.pack(side='left', padx=4)
+        self.prev_button.pack(side='left')
+        self.exit_button.pack(side='left', expand=True)
+        self.next_button.pack(side='left')
 
-# === IMAGE DISPLAY ===
-image_index = 0
-image_label = Label(image=images[image_index])
-image_label.grid(row=0, column=0, columnspan=3)
+        self.status = tk.Label(self.root, text='', bd=1, relief='sunken', anchor='e')
+        self.status.pack(side='bottom', fill='x')
 
-# === FUNCTIONS ===
-def forward():
-    global image_index
-    if image_index < len(images) - 1:
-        image_index += 1
-        update_viewer()
+        self.load_images()
+        self.update_viewer()
+        self.apply_theme()
 
-def back():
-    global image_index
-    if image_index > 0:
-        image_index -= 1
-        update_viewer()
+        self.root.bind_all('<Configure>', self.on_resize)
+        self.root.bind_all('<space>', self.toggle_fullscreen)
+        self.root.bind_all('<Escape>', lambda e: self.set_fullscreen(False))
+        self.root.bind_all('<Left>', lambda e: self.show_prev())
+        self.root.bind_all('<Right>', lambda e: self.show_next())
 
-def update_viewer():
-    image_label.config(image=images[image_index])
-    status_text.config(text=f"Image {image_index + 1} of {len(images)}")
-    update_buttons()
+        self.root.after(100, self.force_focus)
 
-def update_buttons():
-    back_button.config(state=NORMAL if image_index > 0 else DISABLED)
-    forward_button.config(state=NORMAL if image_index < len(images) - 1 else DISABLED)
+    def force_focus(self):
+        self.root.focus_force()
 
-def toggle_theme():
-    global current_theme
-    current_theme = "light" if current_theme == "dark" else "dark"
-    apply_theme()
+    def load_images(self):
+        folder_selected = filedialog.askdirectory(title="Select Folder Containing Images")
+        if not folder_selected:
+            return
+        files = os.listdir(folder_selected)
+        image_files = [f for f in files if f.lower().endswith(('png', 'jpg', 'jpeg', 'gif', 'bmp'))]
+        image_files.sort()
+        for f in image_files:
+            path = os.path.join(folder_selected, f)
+            try:
+                pil_img = Image.open(path)
+                self.pil_images.append(pil_img)
+            except Exception as e:
+                print(f"Could not load image {path}: {e}")
+        self.image_index = 0
 
-def apply_theme():
-    theme = themes[current_theme]
-    root.configure(bg=theme["bg"])
-    image_label.config(bg=theme["bg"])
-    status_bar.config(bg=theme["bg"])
-    status_text.config(bg=theme["bg"], fg=theme["status_fg"])
-    toggle_button.config(bg=theme["bg"], activebackground=theme["bg"], image=moon_icon if current_theme == "dark" else sun_icon)
-    back_button.config(bg=theme["btn_bg"], fg=theme["btn_fg"], activebackground=theme["btn_active"])
-    forward_button.config(bg=theme["btn_bg"], fg=theme["btn_fg"], activebackground=theme["btn_active"])
-    exit_button.config(bg=theme["btn_bg"], fg=theme["btn_fg"], activebackground=theme["btn_active"])
-    root.title("Image Viewer - Dark Mode" if current_theme == "dark" else "Image Viewer - Light Mode")
+    def update_viewer(self):
+        if not self.pil_images:
+            self.status.config(text='No images found.')
+            return
+        pil_img = self.pil_images[self.image_index]
+        label_w = self.image_label.winfo_width()
+        label_h = self.image_label.winfo_height()
+        if label_w < 50 or label_h < 50:
+            self.root.after(100, self.update_viewer)
+            return
+        resized = pil_img.copy()
+        resized.thumbnail((label_w, label_h), Image.LANCZOS)
+        self.tk_image = ImageTk.PhotoImage(resized)
+        self.image_label.config(image=self.tk_image)
+        self.status.config(text=f"Image {self.image_index + 1} of {len(self.pil_images)}")
 
-# === BUTTONS ===
-back_button = Button(root, text="<<", command=back)
-exit_button = Button(root, text="Exit", command=root.quit)
-forward_button = Button(root, text=">>", command=forward)
+    def show_prev(self):
+        if self.image_index > 0:
+            self.image_index -= 1
+            self.update_viewer()
 
-back_button.grid(row=1, column=0)
-exit_button.grid(row=1, column=1)
-forward_button.grid(row=1, column=2)
+    def show_next(self):
+        if self.image_index < len(self.pil_images) - 1:
+            self.image_index += 1
+            self.update_viewer()
 
-# === STATUS BAR WITH EMBEDDED ICON BUTTON ===
-status_bar = Frame(root, bd=1, relief=SUNKEN)
-status_bar.grid(row=2, column=0, columnspan=3, sticky=W+E)
+    def toggle_fullscreen(self, event=None):
+        self.set_fullscreen(not self.fullscreen)
 
-status_text = Label(status_bar, text=f"Image 1 of {len(images)}", anchor=E, font=("Segoe UI", 9))
-status_text.pack(side=RIGHT, fill=X, expand=True)
+    def set_fullscreen(self, value: bool):
+        self.fullscreen = value
+        self.root.attributes("-fullscreen", self.fullscreen)
+        if self.fullscreen:
+            self.controls_frame.pack_forget()
+            self.status.pack_forget()
+        else:
+            self.controls_frame.pack(fill='x')
+            self.status.pack(side='bottom', fill='x')
+        self.update_viewer()
 
-toggle_button = Button(status_bar, image=moon_icon, command=toggle_theme, bd=0, relief=FLAT)
-toggle_button.pack(side=LEFT, padx=5, pady=2)
+    def on_resize(self, event):
+        if self.resize_after_id:
+            self.root.after_cancel(self.resize_after_id)
+        self.resize_after_id = self.root.after(300, self.delayed_resize)
 
+    def delayed_resize(self):
+        width = self.image_label.winfo_width()
+        height = self.image_label.winfo_height()
+        if (width, height) != self.last_size:
+            self.last_size = (width, height)
+            self.update_viewer()
 
-# === HOVER EFFECT TO TOGGLE BUTTON === 
-def on_enter(e): 
-    toggle_button.config(bg=themes[current_theme]['btn_active'])
-def on_leave(e):
-    toggle_button.config(bg=themes[current_theme]['bg'])
-toggle_button.bind('<Enter>', on_enter)
-toggle_button.bind('<Leave>', on_leave)
+    # === THEME FUNCTIONS ===
+    def toggle_theme(self):
+        self.current_theme = "light" if self.current_theme == "dark" else "dark"
+        self.apply_theme()
 
+    def apply_theme(self):
+        theme = self.themes[self.current_theme]
+        self.root.configure(bg=theme["bg"])
+        self.image_label.config(bg=theme["bg"])
+        self.controls_frame.config(bg=theme["bg"])
+        self.status.config(bg=theme["bg"], fg=theme["status_fg"])
 
-# === INIT ===
-update_buttons()
-apply_theme()
-root.mainloop()
+        for btn in [self.prev_button, self.exit_button, self.next_button]:
+            btn.config(bg=theme["btn_bg"], fg=theme["btn_fg"], activebackground=theme["btn_active"])
+
+        self.theme_button.config(
+            image=self.sun_icon if self.current_theme == "dark" else self.moon_icon,
+            bg=theme["bg"],
+            activebackground=theme["bg"]
+        )
+
+if __name__ == '__main__':
+    root = tk.Tk()
+    app = ImageViewer(root)
+    root.mainloop()
